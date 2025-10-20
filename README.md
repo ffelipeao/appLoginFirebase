@@ -37,8 +37,11 @@ appFirebase/
 ├── App.js                 # Componente principal
 ├── app.json              # Configuração do Expo
 ├── package.json          # Dependências do projeto
+├── README.md             # Documentação do projeto
+├── FIREBASE_SETUP.md     # Guia de configuração do Firebase
 ├── config/
-│   └── firebaseConfig.js # Configuração do Firebase
+│   ├── firebaseConfig.js      # Configuração do Firebase (real)
+│   └── firebaseConfig.example.js # Exemplo de configuração
 ├── navigation/
 │   └── AppNavigator.js   # Configuração de navegação
 ├── screens/
@@ -71,8 +74,8 @@ appFirebase/
    ```
 
 3. **Configure o Firebase**
-   - Crie um projeto no [Firebase Console](https://console.firebase.google.com/)
-   - Ative a autenticação por email/senha
+   - Siga o guia detalhado em [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
+   - Use o arquivo de exemplo: `config/firebaseConfig.example.js`
    - Copie as configurações para `config/firebaseConfig.js`
 
 4. **Execute o projeto**
