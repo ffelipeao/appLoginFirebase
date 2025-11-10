@@ -24,6 +24,7 @@ export const criarProduto = async (produto) => {
             descricao: produto.descricao || '',
             preco: parseFloat(produto.preco) || 0,
             quantidade: parseInt(produto.quantidade) || 0,
+            imagemUrl: produto.imagemUrl || null,
             createdAt: new Date(),
             updatedAt: new Date()
         });
@@ -67,13 +68,20 @@ export const listarProdutos = async () => {
 export const atualizarProduto = async (id, produto) => {
     try {
         const produtoRef = doc(db, COLLECTION_NAME, id);
-        await updateDoc(produtoRef, {
+        const dadosAtualizacao = {
             nome: produto.nome,
             descricao: produto.descricao || '',
             preco: parseFloat(produto.preco) || 0,
             quantidade: parseInt(produto.quantidade) || 0,
             updatedAt: new Date()
-        });
+        };
+
+        // Incluir imagemUrl apenas se foi fornecida
+        if (produto.imagemUrl !== undefined) {
+            dadosAtualizacao.imagemUrl = produto.imagemUrl || null;
+        }
+
+        await updateDoc(produtoRef, dadosAtualizacao);
     } catch (error) {
         console.error('Erro ao atualizar produto:', error);
         throw error;

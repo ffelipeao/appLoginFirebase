@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    TextInput, 
-    Button, 
-    StyleSheet, 
+import {
+    View,
+    Text,
+    TextInput,
+    Button,
+    StyleSheet,
     Alert,
     ScrollView,
-    ActivityIndicator
+    ActivityIndicator,
+    Image,
+    TouchableOpacity
 } from 'react-native';
 import { criarProduto, atualizarProduto } from '../services/produtoService';
 import { isAdmin } from '../services/userService';
+import { selecionarImagem, salvarImagemLocal, obterUriImagem, removerImagemLocal } from '../services/imageService';
 
 export default function FormProdutoScreen({ route, navigation }) {
     const produto = route.params?.produto;
@@ -20,7 +23,10 @@ export default function FormProdutoScreen({ route, navigation }) {
     const [descricao, setDescricao] = useState('');
     const [preco, setPreco] = useState('');
     const [quantidade, setQuantidade] = useState('');
+    const [imagemUri, setImagemUri] = useState(null);
+    const [imagemUrl, setImagemUrl] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [loadingImagem, setLoadingImagem] = useState(false);
     const [userIsAdmin, setUserIsAdmin] = useState(false);
 
     useEffect(() => {
@@ -37,13 +43,17 @@ export default function FormProdutoScreen({ route, navigation }) {
             setDescricao(produto.descricao || '');
             setPreco(produto.preco?.toString() || '');
             setQuantidade(produto.quantidade?.toString() || '');
+            if (produto.imagemUrl) {
+                setImagemUrl(produto.imagemUrl);
+                setImagemUri(obterUriImagem(produto.imagemUrl));
+            }
         }
     }, [isEdit, produto]);
 
     const verificarPermissoes = async () => {
         const admin = await isAdmin();
         setUserIsAdmin(admin);
-        
+
         if (!admin) {
             Alert.alert(
                 'Acesso Negado',
@@ -89,6 +99,34 @@ export default function FormProdutoScreen({ route, navigation }) {
         return true;
     };
 
+    const selecionarImagemProduto = async () => {
+        try {
+            setLoadingImagem(true);
+            const uri = await selecionarImagem();
+
+            if (uri) {
+                // Salvar imagem localmente (desenvolvimento)
+                const nomeArquivo = `produto_${nome.trim().replace(/\s+/g, '_') || 'sem_nome'}`;
+                const caminhoLocal = await salvarImagemLocal(uri, nomeArquivo);
+
+                setImagemUri(obterUriImagem(caminhoLocal));
+                setImagemUrl(caminhoLocal);
+            }
+        } catch (error) {
+            Alert.alert('Erro', 'Erro ao selecionar imagem: ' + error.message);
+        } finally {
+            setLoadingImagem(false);
+        }
+    };
+
+    const removerImagem = async () => {
+        if (imagemUrl && !imagemUrl.startsWith('http')) {
+            await removerImagemLocal(imagemUrl);
+        }
+        setImagemUri(null);
+        setImagemUrl(null);
+    };
+
     const salvarProduto = async () => {
         if (!userIsAdmin) {
             Alert.alert('Acesso Negado', 'Apenas administradores podem criar ou editar produtos.');
@@ -107,6 +145,7 @@ export default function FormProdutoScreen({ route, navigation }) {
                 descricao: descricao.trim(),
                 preco: preco.trim(),
                 quantidade: quantidade.trim(),
+                imagemUrl: imagemUrl || null,
             };
 
             if (isEdit) {
@@ -128,13 +167,13 @@ export default function FormProdutoScreen({ route, navigation }) {
             }
         } catch (error) {
             let mensagemErro = 'Erro ao salvar produto';
-            
+
             if (error.code === 'permission-denied') {
                 mensagemErro = 'Você não tem permissão para realizar esta ação. Apenas administradores podem criar ou editar produtos.';
             } else {
                 mensagemErro = error.message;
             }
-            
+
             Alert.alert('Erro', mensagemErro);
         } finally {
             setLoading(false);
@@ -196,6 +235,36 @@ export default function FormProdutoScreen({ route, navigation }) {
                     style={styles.input}
                     keyboardType="number-pad"
                 />
+
+                <Text style={styles.label}>Imagem do Produto</Text>
+                <View style={styles.imageContainer}>
+                    {imagemUri ? (
+                        <View style={styles.imagePreviewContainer}>
+                            <Image source={{ uri: imagemUri }} style={styles.imagePreview} />
+                            <TouchableOpacity
+                                style={styles.removeImageButton}
+                                onPress={removerImagem}
+                            >
+                                <Text style={styles.removeImageText}>Remover</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.selectImageButton}
+                            onPress={selecionarImagemProduto}
+                            disabled={loadingImagem}
+                        >
+                            {loadingImagem ? (
+                                <ActivityIndicator size="small" color="#007bff" />
+                            ) : (
+                                <Text style={styles.selectImageText}>Selecionar Imagem</Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <Text style={styles.imageHelperText}>
+                    Em desenvolvimento, a imagem é salva localmente. Em produção, será enviada para um storage online.
+                </Text>
 
                 <View style={styles.buttonContainer}>
                     {loading ? (
@@ -270,6 +339,51 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#666',
         textAlign: 'center',
+    },
+    imageContainer: {
+        marginBottom: 15,
+    },
+    selectImageButton: {
+        borderWidth: 2,
+        borderColor: '#007bff',
+        borderStyle: 'dashed',
+        borderRadius: 8,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f8f9fa',
+    },
+    selectImageText: {
+        color: '#007bff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    imagePreviewContainer: {
+        position: 'relative',
+    },
+    imagePreview: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        resizeMode: 'cover',
+    },
+    removeImageButton: {
+        marginTop: 10,
+        padding: 10,
+        backgroundColor: '#dc3545',
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    removeImageText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    imageHelperText: {
+        fontSize: 12,
+        color: '#666',
+        fontStyle: 'italic',
+        marginTop: 5,
     },
 });
 

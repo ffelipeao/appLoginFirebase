@@ -7,10 +7,12 @@ import {
     TouchableOpacity, 
     Alert,
     ActivityIndicator,
-    RefreshControl
+    RefreshControl,
+    Image
 } from 'react-native';
 import { listarProdutos, deletarProduto } from '../services/produtoService';
 import { isAdmin } from '../services/userService';
+import { obterUriImagem } from '../services/imageService';
 
 export default function ListaProdutosScreen({ navigation }) {
     const [produtos, setProdutos] = useState([]);
@@ -118,38 +120,45 @@ export default function ListaProdutosScreen({ navigation }) {
         }).format(preco);
     };
 
-    const renderProduto = ({ item }) => (
-        <View style={styles.produtoCard}>
-            <View style={styles.produtoInfo}>
-                <Text style={styles.produtoNome}>{item.nome}</Text>
-                {item.descricao ? (
-                    <Text style={styles.produtoDescricao}>{item.descricao}</Text>
-                ) : null}
-                <View style={styles.produtoDetalhes}>
-                    <Text style={styles.produtoPreco}>{formatarPreco(item.preco)}</Text>
-                    <Text style={styles.produtoQuantidade}>
-                        Estoque: {item.quantidade}
-                    </Text>
+    const renderProduto = ({ item }) => {
+        const imagemUri = item.imagemUrl ? obterUriImagem(item.imagemUrl) : null;
+
+        return (
+            <View style={styles.produtoCard}>
+                {imagemUri && (
+                    <Image source={{ uri: imagemUri }} style={styles.produtoImagem} />
+                )}
+                <View style={styles.produtoInfo}>
+                    <Text style={styles.produtoNome}>{item.nome}</Text>
+                    {item.descricao ? (
+                        <Text style={styles.produtoDescricao}>{item.descricao}</Text>
+                    ) : null}
+                    <View style={styles.produtoDetalhes}>
+                        <Text style={styles.produtoPreco}>{formatarPreco(item.preco)}</Text>
+                        <Text style={styles.produtoQuantidade}>
+                            Estoque: {item.quantidade}
+                        </Text>
+                    </View>
                 </View>
+                {userIsAdmin && (
+                    <View style={styles.produtoAcoes}>
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.editButton]}
+                            onPress={() => editarProduto(item)}
+                        >
+                            <Text style={styles.actionButtonText}>Editar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.deleteButton]}
+                            onPress={() => confirmarDeletar(item)}
+                        >
+                            <Text style={styles.actionButtonText}>Excluir</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
-            {userIsAdmin && (
-                <View style={styles.produtoAcoes}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.editButton]}
-                        onPress={() => editarProduto(item)}
-                    >
-                        <Text style={styles.actionButtonText}>Editar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.deleteButton]}
-                        onPress={() => confirmarDeletar(item)}
-                    >
-                        <Text style={styles.actionButtonText}>Excluir</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-        </View>
-    );
+        );
+    };
 
     if (loading && produtos.length === 0) {
         return (
@@ -230,6 +239,14 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 3.84,
         elevation: 5,
+        overflow: 'hidden',
+    },
+    produtoImagem: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        marginBottom: 15,
+        resizeMode: 'cover',
     },
     produtoInfo: {
         marginBottom: 15,

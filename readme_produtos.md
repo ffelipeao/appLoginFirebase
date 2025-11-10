@@ -34,17 +34,24 @@ O CRUD de produtos foi implementado utilizando:
    - Funções: `isAdmin()`, `getCurrentUserData()`
    - Verifica se o usuário tem role de administrador
 
-3. **`screens/ListaProdutosScreen.js`**
+3. **`services/imageService.js`**
+   - Serviço para gerenciar upload e manipulação de imagens
+   - Funções: `selecionarImagem()`, `salvarImagemLocal()`, `obterUriImagem()`, `removerImagemLocal()`
+   - **Atenção**: Usa API legada do `expo-file-system` (`expo-file-system/legacy`) para compatibilidade
+   - Em desenvolvimento: salva imagens localmente no sandbox do app (apenas para fins educacionais)
+   - Em produção: deve ser configurado para usar storage online (Firebase Storage, AWS S3, etc.)
+
+4. **`screens/ListaProdutosScreen.js`**
    - Tela para listar todos os produtos
    - Funcionalidades: visualizar, editar e excluir produtos
    - Verifica permissões e oculta/mostra botões baseado no role do usuário
 
-4. **`screens/FormProdutoScreen.js`**
+5. **`screens/FormProdutoScreen.js`**
    - Tela para criar e editar produtos
    - Formulário com validação de campos
    - Bloqueia acesso para usuários não-admin
 
-5. **`readme_produtos.md`**
+6. **`readme_produtos.md`**
    - Este arquivo de documentação
 
 ### Arquivos Modificados
@@ -141,6 +148,7 @@ Cada documento na coleção `produtos` possui a seguinte estrutura:
   descricao: string,      // Descrição do produto (opcional)
   preco: number,          // Preço do produto (obrigatório)
   quantidade: number,     // Quantidade em estoque (obrigatório)
+  imagemUrl: string,      // URL ou caminho da imagem (opcional)
   createdAt: timestamp,   // Data de criação
   updatedAt: timestamp    // Data da última atualização
 }
@@ -154,6 +162,7 @@ Cada documento na coleção `produtos` possui a seguinte estrutura:
   "descricao": "Notebook Dell Inspiron 15",
   "preco": 3500.00,
   "quantidade": 10,
+  "imagemUrl": "file:///path/to/imagens/produto_1234567890.jpg",
   "createdAt": "2024-01-15T10:30:00Z",
   "updatedAt": "2024-01-15T10:30:00Z"
 }
@@ -163,12 +172,14 @@ Cada documento na coleção `produtos` possui a seguinte estrutura:
 
 ### 1. Criar Produto (Create)
 - Formulário com validação
-- Campos: nome, descricao, preco, quantidade
+- Campos: nome, descricao, preco, quantidade, imagem
 - Validação de campos obrigatórios
 - Validação de tipos (número para preço e quantidade)
+- Upload de imagem (salva localmente em desenvolvimento)
 
 ### 2. Listar Produtos (Read)
 - Lista todos os produtos cadastrados
+- Exibe imagens dos produtos (se disponíveis)
 - Ordenação por data de criação (mais recentes primeiro)
 - Formatação de preço em Real (R$)
 - Pull-to-refresh para atualizar a lista
@@ -186,6 +197,24 @@ Cada documento na coleção `produtos` possui a seguinte estrutura:
 - Atualização automática da lista após exclusão
 
 ## 🛠️ Passo a Passo da Implementação
+
+### 0. Instalar Dependências
+
+Antes de começar, instale os pacotes necessários:
+
+```bash
+# Navegue até a pasta do projeto
+cd appLoginFirebase
+
+# Instale as dependências
+npm install firebase @react-navigation/native @react-navigation/stack expo-image-picker
+```
+
+**Nota**: Se você já tem o projeto configurado com Firebase e React Navigation, pode instalar apenas o `expo-image-picker`:
+
+```bash
+npm install expo-image-picker
+```
 
 ### 1. Atualizar Configuração do Firebase
 
@@ -247,6 +276,7 @@ Cada documento na coleção `produtos` possui a seguinte estrutura:
 - Descrição (opcional, texto multilinha)
 - Preço (obrigatório, numérico decimal)
 - Quantidade (obrigatório, número inteiro)
+- Imagem (opcional, seleção da galeria)
 
 ### 5. Adicionar Rotas de Navegação
 
@@ -284,6 +314,7 @@ Cada documento na coleção `produtos` possui a seguinte estrutura:
    - **Descrição**: Descrição detalhada (opcional)
    - **Preço**: Preço do produto em reais (obrigatório)
    - **Quantidade**: Quantidade em estoque (obrigatório)
+   - **Imagem**: Selecione uma imagem da galeria (opcional)
 3. Clique em **"Criar Produto"**
 4. Uma mensagem de sucesso será exibida e você retornará à lista
 
@@ -391,13 +422,141 @@ Mesmo que um usuário não-admin tente fazer uma operação, as regras do Firest
 
 ## 📚 Dependências
 
-Todas as dependências necessárias já estão instaladas no projeto:
+### Instalação dos Pacotes
 
-- `firebase`: ^12.4.0
-- `@react-navigation/native`: ^7.1.18
-- `@react-navigation/stack`: ^7.4.10
+Para instalar todas as dependências necessárias para o CRUD de produtos, execute os seguintes comandos:
 
-Nenhuma dependência adicional é necessária.
+```bash
+# Instalar dependências básicas (se ainda não instaladas)
+npm install firebase @react-navigation/native @react-navigation/stack
+
+# Instalar pacote para seleção de imagens
+npm install expo-image-picker
+
+# O expo-file-system já está incluído no Expo, não precisa instalação separada
+```
+
+**Comando completo para instalar tudo de uma vez:**
+
+```bash
+npm install firebase @react-navigation/native @react-navigation/stack expo-image-picker
+```
+
+### Dependências do Projeto
+
+Todas as dependências necessárias para o CRUD de produtos:
+
+- `firebase`: ^12.4.0 - SDK do Firebase para autenticação e Firestore
+- `@react-navigation/native`: ^7.1.18 - Biblioteca de navegação
+- `@react-navigation/stack`: ^7.4.10 - Navegador em pilha
+- `expo-image-picker`: Para seleção de imagens da galeria
+- `expo-file-system`: Para gerenciamento de arquivos locais (já incluído no Expo, não precisa instalação)
+  - **Nota**: O código usa a API legada (`expo-file-system/legacy`) para evitar problemas de compatibilidade
+  - A nova API (File/Directory) ainda está em desenvolvimento e pode apresentar instabilidades
+
+## 📸 Gerenciamento de Imagens
+
+### Desenvolvimento (Local) - Apenas para Projeto de Aula
+
+**⚠️ ATENÇÃO: Esta implementação é APENAS para fins educacionais e desenvolvimento local. NÃO use esta abordagem em produção!**
+
+Em desenvolvimento, as imagens dos produtos são salvas localmente no **sandbox do aplicativo** no dispositivo:
+
+- **Localização Real**: Diretório de documentos do app no dispositivo (sandbox)
+  - **Android**: `/data/user/0/[seu-app]/files/imagens/`
+  - **iOS**: `Documents/imagens/` (no sandbox do app)
+- **Formato**: As imagens são copiadas do dispositivo para o diretório de documentos do app
+- **Acesso**: As imagens são acessadas via URI local (`file://`)
+- **Nome do arquivo**: `produto_[nome]_[timestamp].[extensao]`
+
+**Por que não aparece na pasta física do projeto?**
+
+Em React Native/Expo, os arquivos são salvos no **sandbox do app** no dispositivo, não na pasta física do projeto. Isso é o comportamento esperado e garante:
+- ✅ **Segurança**: Cada app tem seu próprio espaço isolado
+- ✅ **Isolamento**: Outros apps não podem acessar os arquivos
+- ✅ **Funcionamento offline**: Arquivos disponíveis mesmo sem conexão
+
+**⚠️ LIMITAÇÕES DESTA ABORDAGEM (Apenas para Aula):**
+
+1. ❌ **Não funciona entre dispositivos**: As imagens ficam apenas no dispositivo onde foram salvas
+2. ❌ **Perda de dados**: Se o app for desinstalado, as imagens são perdidas
+3. ❌ **Não escalável**: Não funciona para múltiplos usuários
+4. ❌ **Não sincronizado**: Não há backup ou sincronização
+5. ❌ **Acesso limitado**: Apenas o app pode acessar os arquivos
+
+**✅ Para Produção, você DEVE usar um Storage Online:**
+
+1. **Usar um Storage Online** (recomendado):
+   - **Firebase Storage**: Integração nativa com Firebase
+   - **AWS S3**: Solução robusta e escalável
+   - **Cloudinary**: Especializado em imagens
+   - **Outros serviços**: Azure Blob Storage, Google Cloud Storage, etc.
+
+2. **Configurar o Upload**:
+   - Modificar `services/imageService.js` para fazer upload para o storage escolhido
+   - Retornar a URL pública da imagem ao invés do caminho local
+   - Atualizar `salvarImagemLocal()` para fazer upload e retornar URL
+   - **Remover** a lógica de salvamento local (sandbox) em produção
+
+3. **Exemplo de Integração com Firebase Storage**:
+
+```javascript
+// Exemplo de como modificar imageService.js para produção
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../config/firebaseConfig';
+
+export const uploadImagemFirebase = async (imageUri, produtoId) => {
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    const storageRef = ref(storage, `produtos/${produtoId}_${Date.now()}.jpg`);
+    await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+};
+```
+
+4. **Configurar Regras de Segurança do Storage** (Firebase Storage):
+
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /produtos/{productId} {
+      // Apenas admins podem fazer upload
+      allow write: if request.auth != null && 
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Todos autenticados podem ler
+      allow read: if request.auth != null;
+    }
+  }
+}
+```
+
+### Estrutura de Pastas
+
+**No Projeto (Física):**
+```
+appLoginFirebase/
+├── imagens/              # Pasta de referência (vazia no projeto)
+├── services/
+│   └── imageService.js   # Serviço de gerenciamento de imagens
+└── ...
+```
+
+**No Dispositivo (Sandbox do App):**
+```
+[Sandbox do App]/
+└── files/
+    └── imagens/          # Pasta criada automaticamente
+        └── produto_*.jpg # Imagens dos produtos (salvas aqui)
+```
+
+**⚠️ IMPORTANTE**: 
+- A pasta `imagens/` no projeto é apenas uma referência e permanece vazia
+- As imagens são salvas no **sandbox do app no dispositivo**, não na pasta do projeto
+- Isso é o comportamento esperado em React Native/Expo
+- **Esta abordagem é APENAS para fins educacionais e desenvolvimento local**
+- **NÃO use em produção!** Use um storage online (Firebase Storage, AWS S3, etc.)
 
 ## 🐛 Troubleshooting
 
@@ -429,13 +588,51 @@ Nenhuma dependência adicional é necessária.
 2. Verifique se as regras de segurança permitem leitura
 3. Verifique o console para erros
 
+### Imagens não aparecem ou não são salvas
+
+**Solução**:
+1. Verifique se as permissões de galeria foram concedidas
+2. Verifique o console para erros de salvamento
+3. Lembre-se: as imagens são salvas no **sandbox do app no dispositivo**, não na pasta do projeto
+4. Para verificar se a imagem foi salva, verifique os logs no console durante o salvamento
+5. **Em produção**: Use um storage online (Firebase Storage, AWS S3, etc.) ao invés de salvamento local
+
 ## 📝 Notas Adicionais
+
+### Sobre o Projeto
 
 - Os produtos são ordenados por data de criação (mais recentes primeiro)
 - O preço é formatado em Real brasileiro (R$)
 - Todos os timestamps são salvos automaticamente
 - A validação é feita no cliente antes de enviar ao servidor
 - O código segue o padrão do projeto existente (componentes funcionais, hooks, StyleSheet)
+
+### Sobre o Salvamento de Imagens
+
+**⚠️ ATENÇÃO - APENAS PARA FINS EDUCACIONAIS:**
+
+Este projeto foi desenvolvido para fins **educacionais e de aprendizado**. A implementação de salvamento de imagens no sandbox do app é **apenas para demonstração** e **NÃO deve ser usada em produção** pelos seguintes motivos:
+
+1. **Limitações Técnicas**:
+   - Imagens ficam apenas no dispositivo onde foram salvas
+   - Não há sincronização entre dispositivos
+   - Dados são perdidos se o app for desinstalado
+   - Não escalável para múltiplos usuários
+
+2. **Requisitos de Produção**:
+   - Imagens devem estar acessíveis de qualquer dispositivo
+   - Deve haver backup e redundância
+   - Deve suportar múltiplos usuários simultâneos
+   - Deve ter CDN para performance global
+
+3. **Recomendação para Produção**:
+   - Use **Firebase Storage** (recomendado para projetos Firebase)
+   - Ou **AWS S3** para soluções mais robustas
+   - Ou **Cloudinary** para otimização automática de imagens
+   - Configure regras de segurança adequadas
+   - Implemente compressão e otimização de imagens
+
+**Este projeto serve como base de aprendizado. Para produção, sempre use um storage online profissional.**
 
 ## 🎉 Conclusão
 
